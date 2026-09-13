@@ -1,0 +1,22 @@
+[workspace]
+resolver = "2"
+
+[package]
+name = "platform-09-26"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+async-trait = "0.1"
+tokio = { version = "1", features = ["macros", "rt", "sync", "time"] }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["test-util"] }
+
+[[test]]
+name = "task_invariants"
+path = "tests/integration/task_invariants.rs"
+
+[[test]]
+name = "worker_loop"
+path = "tests/integration/worker_loop.rs"
