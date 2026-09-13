@@ -2,7 +2,7 @@ use std::time::{Duration, SystemTime};
 
 use platform_09_26::domain::{
     ActivityType, AttemptMetadata, Lease, LeaseOwnerId, PoolId, RetryMetadata, Task, TaskId,
-    TaskStatus, TenantId, WorkflowId,
+    TaskLimits, TaskStatus, TenantId, WorkflowId,
 };
 
 fn task_with_status(status: TaskStatus) -> Task {
@@ -15,6 +15,10 @@ fn task_with_status(status: TaskStatus) -> Task {
         workflow_id: Some(WorkflowId("workflow-1".into())),
         priority: 10,
         created_at: SystemTime::UNIX_EPOCH,
+        limits: TaskLimits {
+            max_execution_time: Duration::from_secs(30),
+            deadline: SystemTime::UNIX_EPOCH + Duration::from_secs(300),
+        },
         retry: RetryMetadata {
             retry_count: 1,
             max_retries: 3,

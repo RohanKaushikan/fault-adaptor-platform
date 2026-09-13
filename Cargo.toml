@@ -8,7 +8,11 @@ edition = "2021"
 
 [dependencies]
 async-trait = "0.1"
+chrono = { version = "0.4", features = ["clock"] }
+serde_json = "1"
 tokio = { version = "1", features = ["macros", "rt", "sync", "time"] }
+tokio-postgres = { version = "0.7", features = ["with-chrono-0_4", "with-serde_json-1"] }
+uuid = { version = "1", features = ["v4"] }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["test-util"] }
@@ -20,3 +24,11 @@ path = "tests/integration/task_invariants.rs"
 [[test]]
 name = "worker_loop"
 path = "tests/integration/worker_loop.rs"
+
+[[test]]
+name = "in_memory_task_store"
+path = "tests/integration/in_memory_task_store.rs"
+
+[[test]]
+name = "postgres_task_store"
+path = "tests/integration/postgres_task_store.rs"

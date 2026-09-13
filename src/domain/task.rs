@@ -1,8 +1,8 @@
-use std::time::SystemTime;
+use std::time::{Duration, SystemTime};
 
 use super::{Lease, PoolId, TenantId};
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct TaskId(pub String);
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -24,10 +24,24 @@ pub struct AttemptMetadata {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
+pub struct TaskLimits {
+    pub max_execution_time: Duration,
+    pub deadline: SystemTime,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum TaskStatus {
-    Pending { expires_at: SystemTime },
+    Pending {
+        expires_at: SystemTime,
+    },
     Leased(Lease),
-    Completed { completed_at: SystemTime },
+    Completed {
+        completed_at: SystemTime,
+    },
+    Failed {
+        failed_at: SystemTime,
+        message: String,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -40,6 +54,7 @@ pub struct Task {
     pub workflow_id: Option<WorkflowId>,
     pub priority: i32,
     pub created_at: SystemTime,
+    pub limits: TaskLimits,
     pub retry: RetryMetadata,
     pub attempt: AttemptMetadata,
     pub status: TaskStatus,

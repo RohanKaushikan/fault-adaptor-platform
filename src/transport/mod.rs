@@ -22,6 +22,7 @@ pub struct LeaseRenewal {
 pub enum TaskOutcome {
     Succeeded(Vec<u8>),
     Failed { message: String },
+    Retry { retry_count: u32, message: String },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

@@ -6,6 +6,6 @@ mod tenant;
 pub use lease::{Lease, LeaseOwnerId};
 pub use pool::{Pool, PoolId};
 pub use task::{
-    ActivityType, AttemptMetadata, RetryMetadata, Task, TaskId, TaskStatus, WorkflowId,
+    ActivityType, AttemptMetadata, RetryMetadata, Task, TaskId, TaskLimits, TaskStatus, WorkflowId,
 };
 pub use tenant::{Tenant, TenantId};

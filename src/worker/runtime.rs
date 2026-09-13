@@ -1,6 +1,6 @@
 use std::fmt;
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, SystemTime};
 
 use tokio::task::JoinSet;
 use tokio::time::{interval_at, sleep, Instant};
@@ -137,17 +137,19 @@ impl Worker {
 
         let attempt = assignment.task.attempt.attempts_started;
         let outcome = match self.activities.get(&assignment.task.activity_type) {
-            Some(activity) => {
-                match self
-                    .execute_with_renewal(&assignment, &lease, activity)
-                    .await?
-                {
-                    Ok(output) => TaskOutcome::Succeeded(output),
-                    Err(error) => TaskOutcome::Failed {
-                        message: error.message,
-                    },
-                }
-            }
+            Some(activity) => match self
+                .execute_with_renewal(&assignment, &lease, activity)
+                .await?
+            {
+                ExecutionOutcome::Finished(Ok(output)) => TaskOutcome::Succeeded(output),
+                ExecutionOutcome::Finished(Err(error)) => TaskOutcome::Failed {
+                    message: error.message,
+                },
+                ExecutionOutcome::LeaseExpired => TaskOutcome::Retry {
+                    retry_count: assignment.task.retry.retry_count.saturating_add(1),
+                    message: "lease expired after a failed renewal".into(),
+                },
+            },
             None => TaskOutcome::Failed {
                 message: format!(
                     "activity type is not registered: {}",
@@ -172,7 +174,7 @@ impl Worker {
         assignment: &TaskAssignment,
         lease: &Lease,
         activity: Arc<dyn super::Activity>,
-    ) -> Result<Result<Vec<u8>, ActivityError>, WorkerError> {
+    ) -> Result<ExecutionOutcome, WorkerError> {
         let execution = activity.execute(&assignment.task.input);
         tokio::pin!(execution);
 
@@ -181,21 +183,38 @@ impl Worker {
 
         loop {
             tokio::select! {
-                result = &mut execution => return Ok(result),
+                result = &mut execution => return Ok(ExecutionOutcome::Finished(result)),
                 _ = renewal_timer.tick() => {
-                    self.orchestrator
+                    let renewal = self.orchestrator
                         .renew_lease(LeaseRenewal {
                             task_id: assignment.task.id.clone(),
                             worker_id: self.id.clone(),
                             attempt: assignment.task.attempt.attempts_started,
                             ownership_epoch: lease.ownership_epoch,
                         })
-                        .await
-                        .map_err(WorkerError::Orchestrator)?;
+                        .await;
+
+                    if renewal.is_err() {
+                        let time_until_expiry = lease
+                            .expires_at
+                            .duration_since(SystemTime::now())
+                            .unwrap_or(Duration::ZERO);
+
+                        tokio::select! {
+                            biased;
+                            result = &mut execution => return Ok(ExecutionOutcome::Finished(result)),
+                            _ = sleep(time_until_expiry) => return Ok(ExecutionOutcome::LeaseExpired),
+                        }
+                    }
                 }
             }
         }
     }
+}
+
+enum ExecutionOutcome {
+    Finished(Result<Vec<u8>, ActivityError>),
+    LeaseExpired,
 }
 
 #[derive(Debug)]
